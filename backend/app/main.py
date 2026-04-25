@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.utils.logging import setup_logging
 from app.ws.captions import router as captions_router
-from app.ws.audio import router as audio_router
 
 
 setup_logging()
@@ -27,12 +26,10 @@ async def health() -> dict:
         "gemma": settings.has_llm,
         "tavily": settings.has_tavily,
         "verdict_model": settings.verdict_model,
-        "asr_model": settings.asr_model,
     }
 
 
 app.include_router(captions_router)
-app.include_router(audio_router)
 
 
 def main() -> None:

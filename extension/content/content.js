@@ -7,7 +7,6 @@
     START: "niwas/start",
     STOP: "niwas/stop",
     CC_CUE: "niwas/cc-cue",
-    AUDIO_REQUEST: "niwas/audio-request",
     VERDICT: "niwas/verdict",
     STATUS: "niwas/status",
     TRANSCRIPT: "niwas/transcript",
@@ -15,11 +14,9 @@
 
   const state = {
     enabled: false,
-    mode: null, // 'captions' | 'audio'
     ccObserver: null,
     lastCueText: "",
     lastCueAt: 0,
-    fallbackTimer: null,
   };
 
   // ----- video helpers -----
@@ -227,32 +224,20 @@
     $toggle.textContent = "Stop";
     setStatus("starting…");
 
-    // Try to enable YouTube subtitles button if available, in case user hasn't.
+    // Try to enable YouTube subtitles button if it's off.
     const ccBtn = document.querySelector(".ytp-subtitles-button");
     if (ccBtn && ccBtn.getAttribute("aria-pressed") === "false") {
       try { ccBtn.click(); } catch {}
     }
 
-    state.mode = "captions";
-    await sendBg({ type: MSG.START, payload: { mode: "captions", videoId: getVideoId() } });
+    await sendBg({ type: MSG.START, payload: { videoId: getVideoId() } });
     startCaptionObserver();
     setStatus("watching captions…");
-
-    // If no caption activity for 6s, fall back to tab audio.
-    state.fallbackTimer = setTimeout(async () => {
-      if (state.lastCueText) return;
-      setStatus("no captions; capturing audio…", "warn");
-      stopCaptionObserver();
-      state.mode = "audio";
-      await sendBg({ type: MSG.AUDIO_REQUEST, payload: { videoId: getVideoId() } });
-      setStatus("listening to tab audio…");
-    }, 6000);
   }
 
   async function stop() {
     state.enabled = false;
     $toggle.textContent = "Start";
-    if (state.fallbackTimer) { clearTimeout(state.fallbackTimer); state.fallbackTimer = null; }
     stopCaptionObserver();
     await sendBg({ type: MSG.STOP });
     setStatus("stopped");

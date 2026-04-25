@@ -21,11 +21,7 @@ class Settings(BaseSettings):
     # on near-empty buffers).
     min_chunk_chars: int = 80
     # Text model for claim extraction + verdict judging.
-    # Default is gemini-2.0-flash (has a free tier); override to a Gemma model
-    # via env if you have prepaid credits, e.g. VERDICT_MODEL=gemma-3-27b-it.
-    verdict_model: str = "gemini-2.0-flash"
-    # Audio transcription model (multimodal). Same Google API key.
-    asr_model: str = "gemini-2.0-flash"
+    verdict_model: str = "gemma-3-27b-it"
 
     @property
     def has_llm(self) -> bool:

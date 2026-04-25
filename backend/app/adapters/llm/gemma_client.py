@@ -60,14 +60,16 @@ class GemmaClient:
             "Respond with ONLY a single JSON object. No prose, no code fences."
         )
         url = f"{_BASE}/models/{self.model}:generateContent?key={self.api_key}"
+        gen_cfg: dict[str, Any] = {"temperature": 0.1}
+        # `responseMimeType` is supported by Gemini models but rejected (400)
+        # by Gemma. Only include it when we know it's safe.
+        if self.model.lower().startswith("gemini"):
+            gen_cfg["responseMimeType"] = "application/json"
         payload = {
             "contents": [
                 {"role": "user", "parts": [{"text": prompt}]},
             ],
-            "generationConfig": {
-                "temperature": 0.1,
-                "responseMimeType": "application/json",
-            },
+            "generationConfig": gen_cfg,
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
             r = await client.post(url, json=payload)
