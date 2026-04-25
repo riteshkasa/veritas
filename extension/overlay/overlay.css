@@ -1,0 +1,127 @@
+#niwas-overlay {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  width: 360px;
+  max-height: 70vh;
+  z-index: 2147483647;
+  background: rgba(20, 20, 24, 0.92);
+  color: #f5f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#niwas-overlay .niwas-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: move;
+  user-select: none;
+}
+#niwas-overlay .niwas-title { font-weight: 600; flex: 0 0 auto; }
+#niwas-overlay .niwas-status {
+  flex: 1 1 auto;
+  font-size: 11px;
+  opacity: 0.75;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+#niwas-overlay .niwas-status[data-level="warn"] { color: #ffcc66; }
+#niwas-overlay .niwas-status[data-level="error"] { color: #ff7777; }
+
+#niwas-overlay .niwas-btn {
+  background: #3b82f6;
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#niwas-overlay .niwas-btn:hover { background: #2563eb; }
+#niwas-overlay .niwas-btn-ghost {
+  background: transparent;
+  color: #ccc;
+  padding: 2px 8px;
+}
+
+#niwas-overlay .niwas-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+#niwas-overlay .niwas-transcript {
+  font-size: 11px;
+  line-height: 1.4;
+  max-height: 60px;
+  overflow-y: auto;
+  color: #c8c8d0;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+#niwas-overlay .niwas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+#niwas-overlay .niwas-card {
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #888;
+}
+#niwas-overlay .niwas-card.niwas-true { border-left-color: #22c55e; }
+#niwas-overlay .niwas-card.niwas-false { border-left-color: #ef4444; }
+#niwas-overlay .niwas-card.niwas-misleading { border-left-color: #f59e0b; }
+#niwas-overlay .niwas-card.niwas-unverified { border-left-color: #64748b; }
+
+#niwas-overlay .niwas-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+#niwas-overlay .niwas-verdict {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+#niwas-overlay .niwas-card.niwas-true .niwas-verdict { color: #22c55e; }
+#niwas-overlay .niwas-card.niwas-false .niwas-verdict { color: #ef4444; }
+#niwas-overlay .niwas-card.niwas-misleading .niwas-verdict { color: #f59e0b; }
+#niwas-overlay .niwas-card.niwas-unverified .niwas-verdict { color: #94a3b8; }
+
+#niwas-overlay .niwas-conf { font-size: 11px; opacity: 0.7; }
+#niwas-overlay .niwas-time {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.7;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+#niwas-overlay .niwas-claim { font-size: 13px; line-height: 1.35; }
+#niwas-overlay .niwas-rationale { margin-top: 4px; font-size: 11px; opacity: 0.85; }
+#niwas-overlay .niwas-cites { margin-top: 6px; font-size: 11px; }
+#niwas-overlay .niwas-cites a {
+  color: #93c5fd;
+  text-decoration: none;
+  margin-right: 6px;
+}
+#niwas-overlay .niwas-cites a:hover { text-decoration: underline; }
