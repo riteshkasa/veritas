@@ -3,9 +3,11 @@ import time
 from typing import Awaitable, Callable, List, Tuple
 
 from app.adapters.llm.gemma_client import RateLimitError
+from app.agents import factcheck_client
 from app.config import settings
-from app.pipeline.analyze import analyze
-from app.pipeline.schemas import StatusOut, TranscriptOut
+from app.pipeline.analyze import analyze, extract_claims
+from app.pipeline.schemas import StatusOut, TranscriptOut, VerdictResult
+from app.utils.hashing import claim_hash
 from app.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -34,6 +36,11 @@ class Session:
         self._interval = float(settings.analyze_interval_seconds)
         self._min_gap = float(settings.min_llm_interval_seconds)
         self._last_call_at = 0.0
+        # Serialize fact-check agent calls. uagents' sync-response path
+        # is not concurrency-safe for multiple in-flight requests from the
+        # same sender, so we process claims one at a time. Each call is fast
+        # on cache hits, and bounded LLM/HTTP latency on misses.
+        self._agent_lock = asyncio.Lock()
 
     # ---- public ----
     async def feed(self, text: str, time_ms: int) -> None:
@@ -93,7 +100,7 @@ class Session:
         )
 
         try:
-            results = await analyze(chunk, first_time_ms)
+            claims = await extract_claims(chunk)
         except RateLimitError as e:
             old = self._interval
             self._interval = min(self._interval * 2, 120.0)
@@ -105,7 +112,7 @@ class Session:
             ).model_dump())
             return
         except Exception as e:
-            log.exception("analyze failed: %s", e)
+            log.exception("extract_claims failed: %s", e)
             return
 
         # Success -> gradually relax backoff back to defaults.
@@ -113,12 +120,35 @@ class Session:
             self._interval = max(settings.analyze_interval_seconds, self._interval * 0.7)
             self._min_gap = max(settings.min_llm_interval_seconds, self._min_gap * 0.7)
 
-        for r in results:
-            if r.claim_id in self.seen_claims:
+        log.info("extracted %d claim(s); dispatching to fact-check agent", len(claims))
+        for c in claims:
+            cid = claim_hash(c)
+            if cid in self.seen_claims:
                 continue
-            self.seen_claims.add(r.claim_id)
-            await self.send(r.model_dump())
-            log.info("verdict %s: %s (%.2f) — %s", r.claim_id, r.verdict, r.confidence, r.claim[:80])
+            self.seen_claims.add(cid)
+            asyncio.create_task(self._resolve_claim(cid, c, first_time_ms))
+
+    async def _resolve_claim(self, claim_id: str, claim: str, video_time_ms: int) -> None:
+        """Send one claim through the fact-check agent and emit the verdict."""
+        async with self._agent_lock:
+            try:
+                result: VerdictResult = await factcheck_client.check(
+                    claim,
+                    request_id=claim_id,
+                    video_id=self.video_id,
+                    video_time_ms=video_time_ms,
+                )
+            except Exception as e:
+                log.exception("fact-check agent call failed: %s", e)
+                return
+        # Make sure the timestamp matches when this claim first appeared.
+        result.video_time_ms = video_time_ms
+        await self.send(result.model_dump())
+        log.info(
+            "verdict %s: %s (%.2f) cites=%d — %s",
+            result.claim_id, result.verdict, result.confidence,
+            len(result.citations), result.claim[:80],
+        )
 
 
 def _merge_cues(items: List[Tuple[int, str]]) -> str:

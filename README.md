@@ -1,6 +1,6 @@
 # Niwas — Real-Time Video Fact Checker
 
-A Chrome extension + FastAPI backend that fact-checks YouTube videos in real time. It prefers the video's closed captions when available; otherwise it captures the tab's audio in chunks, transcribes via Gemini, segments check-worthy claims with Gemma, retrieves evidence (Wikipedia + optional Tavily web search), and overlays verdicts on the video.
+A Chrome extension + FastAPI backend + Fetch.ai uAgent that fact-checks YouTube videos in real time. The extension streams closed captions to the backend; Gemma extracts check-worthy claims; each claim is sent to a Fetch.ai uAgent that consults a local SQLite vector cache (Gemini embeddings, cosine similarity) and falls back to Wikipedia + Google Fact Check Tools APIs to gather evidence; Gemma renders a final verdict against that evidence; the cache is written back so paraphrased claims are answered instantly.
 
 See `PLAN.md` for the full design.
 
@@ -18,7 +18,25 @@ python -m app.main
 
 Health check: `curl http://localhost:8787/health`
 
-### 2. Chrome extension
+### 2. Fact-check uAgent
+
+Run in a separate terminal:
+
+```bash
+./scripts/dev-agent.sh
+```
+
+The first run prints an `agent1q...` address. Copy it into `backend/.env` as `FACTCHECK_AGENT_ADDRESS=agent1q...` (and set `FACTCHECK_AGENT_SEED=` to any stable phrase to keep the address deterministic across restarts), then restart the agent.
+
+Smoke test the agent without the extension:
+
+```bash
+backend/.venv/bin/python scripts/test_factcheck_agent.py "The Eiffel Tower is 330 meters tall"
+```
+
+To enable Google Fact Check Tools as an evidence source, enable the API in the Google Cloud project tied to your `GEMMA_API_KEY` (or set a separate `GOOGLE_FACTCHECK_API_KEY`). Wikipedia works without any key.
+
+### 3. Chrome extension
 
 1. Open `chrome://extensions` and enable **Developer mode**.
 2. Click **Load unpacked** and pick the `extension/` folder.

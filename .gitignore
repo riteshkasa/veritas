@@ -10,3 +10,8 @@ dist/
 *.log
 .idea/
 .vscode/
+# Local fact-check cache (SQLite)
+cache.db
+cache.db-journal
+cache.db-wal
+cache.db-shm
