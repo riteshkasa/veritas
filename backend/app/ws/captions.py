@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.pipeline.orchestrator import Session
-from app.pipeline.schemas import CueIn, StatusOut
+from app.pipeline.schemas import ChatIn, CueIn, StatusOut
 from app.utils.logging import get_logger
 
 log = get_logger(__name__)
@@ -55,6 +55,19 @@ async def ingest_captions(ws: WebSocket) -> None:
                     await send(StatusOut(message=f"Bad Cue: {e}", level="warn").model_dump())
                     continue
                 await session.feed(cue.text, cue.start_ms)
+                continue
+
+            if mtype == "chat":
+                if session is None:
+                    session = Session(
+                        session_id=data.get("sessionId", "anon"),
+                        video_id=data.get("videoId", ""),
+                        send=send,
+                        video_meta=data.get("meta") or {},
+                    )
+                text = (data.get("text") or "").strip()
+                if text:
+                    await session.handle_chat(text)
                 continue
 
             if mtype == "flush":

@@ -12,7 +12,7 @@ Retrieval-backed verdicts are produced by the fact-check uAgent (see
 from typing import List
 
 from app.adapters.llm.gemma_client import GemmaClient
-from app.pipeline.schemas import Citation, VerdictResult
+from app.pipeline.schemas import ChatOut, Citation, VerdictResult
 from app.utils.hashing import claim_hash
 from app.utils.logging import get_logger
 
@@ -45,13 +45,15 @@ LEGACY_SYSTEM = (
     "numbers, dates, named people / orgs / places, causal statements, "
     "scientific or historical facts. Skip opinions, jokes, questions, "
     "hypotheticals, ad copy, and chit-chat. Resolve pronouns where obvious.\n"
-    "2) For each claim, judge its veracity using only your own knowledge. "
+    "2) For each claim, judge its veracity using your own knowledge. "
     "Pick exactly one verdict from: 'true', 'false', 'misleading', "
-    "'unverified'. Use 'unverified' ONLY when you genuinely do not know. "
-    "Provide a confidence in [0,1] and a 1–2 sentence rationale.\n\n"
+    "'needs_context'. NEVER return 'unknown' or 'unverified'. Always make "
+    "your best-guess judgment. If a claim is inherently ambiguous or "
+    "context-dependent, use 'needs_context' and present arguments from both "
+    "sides. Provide a confidence in [0,1] and a 1–2 sentence rationale.\n\n"
     "Return JSON of the form:\n"
     "{\"claims\": [\n"
-    "  {\"claim\": str, \"verdict\": \"true|false|misleading|unverified\", "
+    "  {\"claim\": str, \"verdict\": \"true|false|misleading|needs_context\", "
     "\"confidence\": number, \"rationale\": str}\n"
     "]}\n"
     "If there are no check-worthy claims, return {\"claims\": []}. "
@@ -62,11 +64,30 @@ LEGACY_SYSTEM = (
 VERDICT_WITH_EVIDENCE_SYSTEM = (
     "You judge a single factual claim given a small set of evidence snippets. "
     "Pick exactly one verdict from: 'true', 'false', 'misleading', "
-    "'unverified'. Use 'unverified' if the evidence is insufficient. "
-    "Provide a confidence in [0,1] and a 1-2 sentence rationale that explicitly "
-    "cites the evidence indices you relied on (e.g. \"[1], [3]\").\n\n"
+    "'needs_context'.\n\n"
+    "IMPORTANT RULES:\n"
+    "- NEVER return 'unknown' or 'unverified' as a verdict. You must always "
+    "commit to one of the four verdicts above.\n"
+    "- If the provided evidence does NOT directly relate to the claim, use "
+    "your own knowledge to make a best-guess verdict. State your reasoning "
+    "clearly and set confidence based on how sure you are.\n"
+    "- If a claim is inherently ambiguous or context-dependent (e.g. 'X policy "
+    "is good for the economy'), use verdict 'needs_context' and present "
+    "arguments from BOTH sides, citing sources for and against where possible. "
+    "Explain what additional context would be needed to reach a definitive "
+    "conclusion.\n"
+    "- You should be reasonably certain in your verdicts. Only use low "
+    "confidence (<0.5) when the claim is genuinely ambiguous, not because you "
+    "lack evidence — in that case, use your own knowledge.\n\n"
+    "CITATION RULES:\n"
+    "- In your rationale, ALWAYS refer to sources by their actual name or title "
+    "(e.g. 'According to the Wikipedia article on X…', 'Per NASA's official "
+    "data…'). NEVER say 'evidence [1]' or 'evidence #3' — the user cannot see "
+    "the evidence list, so numbered references are meaningless to them.\n"
+    "- If you used your own knowledge instead of evidence, say so explicitly.\n\n"
+    "Provide a confidence in [0,1] and a 1-2 sentence rationale.\n\n"
     "Return JSON of the form:\n"
-    "{\"verdict\": \"true|false|misleading|unverified\", "
+    "{\"verdict\": \"true|false|misleading|needs_context\", "
     "\"confidence\": number, \"rationale\": str, "
     "\"citations\": [int, ...]}\n"
     "`citations` are 1-based indices into the evidence list you were given. "
@@ -74,7 +95,7 @@ VERDICT_WITH_EVIDENCE_SYSTEM = (
 )
 
 
-_VALID = {"true", "false", "misleading", "unverified"}
+_VALID = {"true", "false", "misleading", "needs_context"}
 
 
 async def analyze(text: str, video_time_ms: int) -> List[VerdictResult]:
@@ -100,9 +121,9 @@ async def analyze(text: str, video_time_ms: int) -> List[VerdictResult]:
         claim_text = (c.get("claim") or "").strip()
         if not claim_text:
             continue
-        verdict = (c.get("verdict") or "unverified").lower().strip()
+        verdict = (c.get("verdict") or "needs_context").lower().strip()
         if verdict not in _VALID:
-            verdict = "unverified"
+            verdict = "needs_context"
         try:
             confidence = float(c.get("confidence", 0.5))
         except (TypeError, ValueError):
@@ -169,7 +190,7 @@ async def verdict_with_evidence(claim: str, evidence: List[Citation]) -> Verdict
         claim_id=claim_hash(claim or "empty"),
         video_time_ms=0,
         claim=claim,
-        verdict="unverified",
+        verdict="needs_context",
         confidence=0.3,
         rationale="No evidence available or LLM call failed.",
         citations=list(evidence),
@@ -194,9 +215,9 @@ async def verdict_with_evidence(claim: str, evidence: List[Citation]) -> Verdict
         log.warning("verdict_with_evidence: LLM call failed: %s", e)
         return fallback
 
-    verdict = (out.get("verdict") or "unverified").lower().strip()
+    verdict = (out.get("verdict") or "needs_context").lower().strip()
     if verdict not in _VALID:
-        verdict = "unverified"
+        verdict = "needs_context"
     try:
         confidence = float(out.get("confidence", 0.5))
     except (TypeError, ValueError):
@@ -228,3 +249,64 @@ async def verdict_with_evidence(claim: str, evidence: List[Citation]) -> Verdict
         rationale=rationale,
         citations=kept,
     )
+
+
+CHAT_SYSTEM = (
+    "You are Veritas, an AI fact-checking assistant embedded in a YouTube video "
+    "viewer. The user is watching a video and can ask you questions about claims "
+    "made in the video, or any general knowledge questions.\n\n"
+    "You have access to the recent transcript of the video the user is watching. "
+    "Use it as context when relevant.\n\n"
+    "IMPORTANT RULES:\n"
+    "- Be concise and direct. Aim for 2-4 sentences unless the question demands "
+    "more detail.\n"
+    "- NEVER say 'unknown' or 'I don't know'. Always make your best-guess "
+    "assessment based on your knowledge.\n"
+    "- If a topic is genuinely ambiguous or context-dependent (e.g. 'is X good "
+    "for the economy?'), present arguments from BOTH sides and explain what "
+    "additional context would be needed.\n"
+    "- If the provided transcript context doesn't relate to the question, answer "
+    "from your own knowledge and say so.\n"
+    "- Be reasonably certain in your answers. Express your confidence level when "
+    "making factual claims.\n"
+    "- Cite specific evidence or reasoning to support your answer.\n\n"
+    "Return JSON of the form:\n"
+    "{\"answer\": str}\n"
+    "Output ONLY the JSON object."
+)
+
+
+async def chat(question: str, transcript_context: str = "") -> ChatOut:
+    """Answer a free-form user question using Gemma, with optional transcript context."""
+    question = (question or "").strip()
+    if not question:
+        return ChatOut(text="Please ask a question.", request_text=question)
+
+    client = GemmaClient()
+    if not client.enabled:
+        return ChatOut(
+            text="Chat is unavailable — GEMMA_API_KEY is not configured.",
+            request_text=question,
+        )
+
+    user_msg = question
+    if transcript_context:
+        user_msg = (
+            f"RECENT TRANSCRIPT:\n{transcript_context}\n\n"
+            f"USER QUESTION:\n{question}"
+        )
+
+    try:
+        out = await client.chat_json(CHAT_SYSTEM, user_msg, timeout=25.0)
+    except Exception as e:
+        log.warning("chat: LLM call failed: %s", e)
+        return ChatOut(
+            text="Sorry, I couldn't process that right now. Please try again.",
+            request_text=question,
+        )
+
+    answer = str(out.get("answer") or out.get("text") or "").strip()
+    if not answer:
+        answer = "I wasn't able to generate a response. Please rephrase your question."
+
+    return ChatOut(text=answer, request_text=question)

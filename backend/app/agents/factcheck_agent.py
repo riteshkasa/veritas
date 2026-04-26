@@ -101,7 +101,7 @@ def _build_agent() -> Agent:
             await ctx.send(sender, FactCheckResponse(
                 request_id=msg.request_id,
                 claim="",
-                verdict="unverified",
+                verdict="needs_context",
                 confidence=0.0,
                 rationale="empty claim",
                 video_time_ms=msg.video_time_ms,

@@ -2,7 +2,7 @@ from typing import Literal, List, Optional
 from pydantic import BaseModel, Field
 
 
-Verdict = Literal["true", "false", "misleading", "unverified"]
+Verdict = Literal["true", "false", "misleading", "needs_context"]
 
 
 class Citation(BaseModel):
@@ -61,3 +61,18 @@ class TranscriptOut(BaseModel):
     type: Literal["transcript"] = "transcript"
     text: str
     video_time_ms: Optional[int] = None
+
+
+class ChatIn(BaseModel):
+    type: Literal["chat"]
+    text: str
+    session_id: str = Field(alias="sessionId", default="")
+    video_id: str = Field(alias="videoId", default="")
+
+    model_config = {"populate_by_name": True}
+
+
+class ChatOut(BaseModel):
+    type: Literal["chat_response"] = "chat_response"
+    text: str
+    request_text: str = ""

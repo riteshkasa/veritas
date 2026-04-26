@@ -46,7 +46,7 @@ async def check(
     """Send a claim to the fact-check agent and return the resulting verdict."""
     address = settings.factcheck_agent_address
     if not address:
-        log.warning("FACTCHECK_AGENT_ADDRESS not set; returning unverified")
+        log.warning("FACTCHECK_AGENT_ADDRESS not set; returning needs_context")
         return _fallback(claim, video_time_ms, "agent address not configured")
 
     timeout_s = int(timeout if timeout is not None else settings.factcheck_timeout_seconds)
@@ -88,11 +88,15 @@ async def check(
         return _fallback(claim, video_time_ms, f"unexpected reply type {type(result).__name__}")
 
     citations = [Citation(title=c.title, url=c.url, snippet=c.snippet) for c in result.citations]
+    _valid_verdicts = {"true", "false", "misleading", "needs_context"}
+    verdict = result.verdict.lower().strip() if result.verdict else "needs_context"
+    if verdict not in _valid_verdicts:
+        verdict = "needs_context"
     return VerdictResult(
         claim_id=request_id or claim_hash(claim),
         video_time_ms=video_time_ms,
         claim=result.claim or claim,
-        verdict=result.verdict,  # type: ignore[arg-type]
+        verdict=verdict,  # type: ignore[arg-type]
         confidence=result.confidence,
         rationale=result.rationale,
         citations=citations,
@@ -104,7 +108,7 @@ def _fallback(claim: str, video_time_ms: int, reason: str) -> VerdictResult:
         claim_id=claim_hash(claim or "empty"),
         video_time_ms=video_time_ms,
         claim=claim,
-        verdict="unverified",
+        verdict="needs_context",
         confidence=0.2,
         rationale=f"fact-check agent unavailable: {reason}",
         citations=[],

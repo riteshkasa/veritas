@@ -24,6 +24,7 @@ function attachWsHandlers(ws, tabId) {
     if (data.type === "verdict") sendToTab(tabId, { type: MSG.VERDICT, payload: data });
     else if (data.type === "transcript") sendToTab(tabId, { type: MSG.TRANSCRIPT, payload: data });
     else if (data.type === "status") sendToTab(tabId, { type: MSG.STATUS, payload: data });
+    else if (data.type === "chat_response") sendToTab(tabId, { type: MSG.CHAT_RESPONSE, payload: data });
   });
   ws.addEventListener("close", () => {
     sendToTab(tabId, { type: MSG.STATUS, payload: { type: "status", level: "warn", message: "Captions N/A" } });
@@ -77,6 +78,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           videoId: s.videoId,
           startMs: msg.payload.startMs,
           endMs: msg.payload.endMs,
+          text: msg.payload.text,
+        }));
+        sendResponse({ ok: true });
+      } else if (msg.type === MSG.CHAT) {
+        const s = getState(tabId);
+        const ws = await ensureCaptionsWs(tabId, msg.payload?.videoId || "");
+        ws.send(JSON.stringify({
+          type: "chat",
+          sessionId: s.sessionId,
+          videoId: s.videoId,
           text: msg.payload.text,
         }));
         sendResponse({ ok: true });

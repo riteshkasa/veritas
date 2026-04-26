@@ -5,8 +5,8 @@ from typing import Awaitable, Callable, List, Tuple
 from app.adapters.llm.gemma_client import RateLimitError
 from app.agents import factcheck_client
 from app.config import settings
-from app.pipeline.analyze import analyze, extract_claims
-from app.pipeline.schemas import StatusOut, TranscriptOut, VerdictResult
+from app.pipeline.analyze import analyze, chat, extract_claims
+from app.pipeline.schemas import ChatOut, StatusOut, TranscriptOut, VerdictResult
 from app.utils.hashing import claim_hash
 from app.utils.logging import get_logger
 
@@ -32,6 +32,7 @@ class Session:
         self.video_meta: dict = video_meta or {}
         self.queue: List[Tuple[int, str]] = []  # (video_time_ms, text)
         self.seen_claims: set[str] = set()
+        self._transcript_buffer: list[str] = []  # recent transcript for chat context
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self._interval = float(settings.analyze_interval_seconds)
@@ -66,9 +67,19 @@ class Session:
             return
         # Live transcript echo for the UI.
         await self.send(TranscriptOut(text=text, video_time_ms=time_ms).model_dump())
+        self._transcript_buffer.append(text)
+        # Keep last ~50 cues for chat context.
+        if len(self._transcript_buffer) > 50:
+            self._transcript_buffer = self._transcript_buffer[-50:]
         self.queue.append((time_ms, text))
         if self._task is None:
             self._task = asyncio.create_task(self._worker())
+
+    async def handle_chat(self, question: str) -> None:
+        """Answer a user question via Gemma, using recent transcript as context."""
+        transcript_ctx = " ".join(self._transcript_buffer[-30:]) if self._transcript_buffer else ""
+        result: ChatOut = await chat(question, transcript_context=transcript_ctx)
+        await self.send(result.model_dump())
 
     async def flush(self) -> None:
         await self._drain_once(force=True)
@@ -116,6 +127,8 @@ class Session:
             len(items), len(chunk), self._interval,
         )
 
+        await self.send(StatusOut(message="Seeking…").model_dump())
+
         try:
             claims = await extract_claims(chunk, video_context=self._video_context())
         except RateLimitError as e:
@@ -138,11 +151,14 @@ class Session:
             self._min_gap = max(settings.min_llm_interval_seconds, self._min_gap * 0.7)
 
         log.info("extracted %d claim(s); dispatching to fact-check agent", len(claims))
+        if not claims:
+            await self.send(StatusOut(message="Watching Captions…").model_dump())
         for c in claims:
             cid = claim_hash(c)
             if cid in self.seen_claims:
                 continue
             self.seen_claims.add(cid)
+            await self.send(StatusOut(message=f"Checking: {c[:60]}…").model_dump())
             asyncio.create_task(self._resolve_claim(cid, c, first_time_ms))
 
     async def _resolve_claim(self, claim_id: str, claim: str, video_time_ms: int) -> None:
@@ -161,6 +177,7 @@ class Session:
         # Make sure the timestamp matches when this claim first appeared.
         result.video_time_ms = video_time_ms
         await self.send(result.model_dump())
+        await self.send(StatusOut(message="Watching Captions…").model_dump())
         log.info(
             "verdict %s: %s (%.2f) cites=%d — %s",
             result.claim_id, result.verdict, result.confidence,

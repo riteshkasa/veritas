@@ -5,7 +5,8 @@
   top: 80px;
   right: 16px;
   width: 370px;
-  max-height: 72vh;
+  height: 72vh;
+  max-height: 90vh;
   z-index: 2147483647;
   background: #2b2b30;
   color: #e4e4e8;
@@ -115,9 +116,67 @@
 #niwas-overlay .niwas-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 14px;
   overflow: hidden;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── sections ── */
+#niwas-overlay .niwas-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+#niwas-overlay .niwas-section-facts {
+  flex: 1 1 55%;
+  min-height: 40px;
+  overflow: hidden;
+}
+#niwas-overlay .niwas-section-chat {
+  flex: 1 1 auto;
+  min-height: 90px;
+  overflow: hidden;
+}
+#niwas-overlay .niwas-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(228, 228, 232, 0.35);
+  padding: 0 2px;
+  flex: 0 0 auto;
+}
+
+/* ── split handle ── */
+#niwas-overlay .niwas-split-handle {
+  flex: 0 0 auto;
+  height: 14px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.15s ease;
+}
+#niwas-overlay .niwas-split-handle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+#niwas-overlay .niwas-split-grip {
+  width: 40px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.15s ease;
+}
+#niwas-overlay .niwas-split-handle:hover .niwas-split-grip {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 /* ── transcript ticker ── */
@@ -126,6 +185,7 @@
   line-height: 1.5;
   max-height: 56px;
   overflow-y: auto;
+  flex: 0 0 auto;
   color: rgba(228, 228, 232, 0.6);
   background: rgba(255, 255, 255, 0.04);
   padding: 8px 10px;
@@ -139,7 +199,8 @@
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
-  max-height: 50vh;
+  flex: 1 1 auto;
+  min-height: 0;
   padding-right: 2px;
 }
 
@@ -156,7 +217,7 @@
 #niwas-overlay .niwas-card.niwas-true { border-left-color: #34d399; }
 #niwas-overlay .niwas-card.niwas-false { border-left-color: #f87171; }
 #niwas-overlay .niwas-card.niwas-misleading { border-left-color: #fbbf24; }
-#niwas-overlay .niwas-card.niwas-unverified { border-left-color: #64748b; }
+#niwas-overlay .niwas-card.niwas-needs_context { border-left-color: #a78bfa; }
 
 #niwas-overlay .niwas-card-head {
   display: flex;
@@ -183,8 +244,8 @@
 #niwas-overlay .niwas-card.niwas-misleading .niwas-verdict {
   color: #fbbf24; background: rgba(251, 191, 36, 0.1);
 }
-#niwas-overlay .niwas-card.niwas-unverified .niwas-verdict {
-  color: #94a3b8; background: rgba(148, 163, 184, 0.1);
+#niwas-overlay .niwas-card.niwas-needs_context .niwas-verdict {
+  color: #a78bfa; background: rgba(167, 139, 250, 0.1);
 }
 
 #niwas-overlay .niwas-conf {
@@ -268,4 +329,86 @@
 }
 #niwas-overlay .niwas-resize:hover::after {
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── chat area (inside overlay) ── */
+#niwas-overlay .niwas-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+#niwas-overlay .niwas-chat:empty::before {
+  content: "Ask anything about the video\2026";
+  color: rgba(228, 228, 232, 0.3);
+  font-size: 11.5px;
+  text-align: center;
+  padding: 8px 0;
+}
+
+#niwas-overlay .niwas-chat-bubble {
+  padding: 7px 11px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 88%;
+  word-wrap: break-word;
+  flex-shrink: 0;
+}
+#niwas-overlay .niwas-chat-user {
+  align-self: flex-end;
+  background: rgba(99, 102, 241, 0.25);
+  color: #e4e4e8;
+  border-bottom-right-radius: 4px;
+}
+#niwas-overlay .niwas-chat-assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(228, 228, 232, 0.85);
+  border-bottom-left-radius: 4px;
+}
+
+/* chat input row */
+#niwas-overlay .niwas-chat-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+#niwas-overlay .niwas-chat-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: #e4e4e8;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+#niwas-overlay .niwas-chat-input::placeholder {
+  color: rgba(228, 228, 232, 0.35);
+}
+#niwas-overlay .niwas-chat-input:focus {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+#niwas-overlay .niwas-chat-input:disabled {
+  opacity: 0.5;
+}
+#niwas-overlay .niwas-chat-send-btn {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#niwas-overlay .niwas-chat-send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
