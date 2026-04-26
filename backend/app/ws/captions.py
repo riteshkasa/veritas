@@ -27,7 +27,7 @@ async def ingest_captions(ws: WebSocket) -> None:
             try:
                 data = json.loads(msg)
             except json.JSONDecodeError:
-                await send(StatusOut(message="invalid json", level="warn").model_dump())
+                await send(StatusOut(message="Invalid JSON", level="warn").model_dump())
                 continue
 
             mtype = data.get("type")
@@ -36,8 +36,9 @@ async def ingest_captions(ws: WebSocket) -> None:
                     session_id=data.get("sessionId", "anon"),
                     video_id=data.get("videoId", ""),
                     send=send,
+                    video_meta=data.get("meta") or {},
                 )
-                await send(StatusOut(message="captions session ready").model_dump())
+                await send(StatusOut(message="Veritas Online").model_dump())
                 continue
 
             if mtype == "cue":
@@ -46,11 +47,12 @@ async def ingest_captions(ws: WebSocket) -> None:
                         session_id=data.get("sessionId", "anon"),
                         video_id=data.get("videoId", ""),
                         send=send,
+                        video_meta=data.get("meta") or {},
                     )
                 try:
                     cue = CueIn.model_validate(data)
                 except Exception as e:
-                    await send(StatusOut(message=f"bad cue: {e}", level="warn").model_dump())
+                    await send(StatusOut(message=f"Bad Cue: {e}", level="warn").model_dump())
                     continue
                 await session.feed(cue.text, cue.start_ms)
                 continue

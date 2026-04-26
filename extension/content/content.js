@@ -31,21 +31,41 @@
     const v = getVideo();
     return v ? Math.floor(v.currentTime * 1000) : 0;
   }
+  function getVideoMeta() {
+    const title = document.querySelector(
+      "yt-formatted-string.style-scope.ytd-watch-metadata, h1.ytd-video-primary-info-renderer yt-formatted-string"
+    )?.textContent?.trim() || document.title.replace(" - YouTube", "").trim();
+    const channel = document.querySelector(
+      "ytd-channel-name yt-formatted-string a, #channel-name a"
+    )?.textContent?.trim() || "";
+    const desc = document.querySelector(
+      "ytd-text-inline-expander .content, #description-inline-expander yt-attributed-string span"
+    )?.textContent?.trim().slice(0, 500) || "";
+    const dateEl = document.querySelector(
+      "#info-strings yt-formatted-string, ytd-video-primary-info-renderer .date"
+    );
+    const publishDate = dateEl?.textContent?.trim() || "";
+    return { title, channel, description: desc, publishDate };
+  }
 
   // ----- overlay UI -----
   const overlay = document.createElement("div");
   overlay.id = "niwas-overlay";
   overlay.innerHTML = `
     <div class="niwas-header">
-      <span class="niwas-title">Niwas Fact Check</span>
+      <span class="niwas-title">Veritas</span>
+      <span class="niwas-badge" id="niwas-badge" title="Verdicts">0</span>
       <span class="niwas-status" id="niwas-status">idle</span>
       <button class="niwas-btn" id="niwas-toggle">Start</button>
-      <button class="niwas-btn niwas-btn-ghost" id="niwas-collapse">–</button>
+      <button class="niwas-btn niwas-btn-ghost" id="niwas-collapse" title="Expand / Collapse">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
     </div>
     <div class="niwas-body" id="niwas-body">
       <div class="niwas-transcript" id="niwas-transcript"></div>
       <div class="niwas-list" id="niwas-list"></div>
     </div>
+    <div class="niwas-resize" id="niwas-resize"></div>
   `;
   document.documentElement.appendChild(overlay);
 
@@ -57,11 +77,30 @@
   const $transcript = overlay.querySelector("#niwas-transcript");
 
   let collapsed = false;
-  $collapse.addEventListener("click", () => {
-    collapsed = !collapsed;
-    $body.style.display = collapsed ? "none" : "";
-    $collapse.textContent = collapsed ? "+" : "–";
-  });
+  const $badge = overlay.querySelector("#niwas-badge");
+  function setCollapsed(val) {
+    collapsed = val;
+    overlay.classList.toggle("niwas-collapsed", collapsed);
+  }
+  $collapse.addEventListener("click", () => setCollapsed(!collapsed));
+
+  // resize handle
+  (function makeResizable() {
+    const handle = overlay.querySelector("#niwas-resize");
+    let resizing = false, startY = 0, startH = 0;
+    handle.addEventListener("mousedown", (e) => {
+      resizing = true;
+      startY = e.clientY;
+      startH = overlay.offsetHeight;
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!resizing) return;
+      const newH = Math.max(80, startH + (e.clientY - startY));
+      overlay.style.maxHeight = newH + "px";
+    });
+    window.addEventListener("mouseup", () => { resizing = false; });
+  })();
 
   // draggable
   (function makeDraggable() {
@@ -128,6 +167,7 @@
     });
     $list.prepend(card);
     while ($list.childElementCount > 50) $list.removeChild($list.lastChild);
+    $badge.textContent = $list.childElementCount;
   }
 
   function msToClock(ms) {
@@ -222,7 +262,7 @@
   async function start() {
     state.enabled = true;
     $toggle.textContent = "Stop";
-    setStatus("starting…");
+    setStatus("Starting…");
 
     // Try to enable YouTube subtitles button if it's off.
     const ccBtn = document.querySelector(".ytp-subtitles-button");
@@ -230,9 +270,9 @@
       try { ccBtn.click(); } catch {}
     }
 
-    await sendBg({ type: MSG.START, payload: { videoId: getVideoId() } });
+    await sendBg({ type: MSG.START, payload: { videoId: getVideoId(), meta: getVideoMeta() } });
     startCaptionObserver();
-    setStatus("watching captions…");
+    setStatus("Watching Captions…");
   }
 
   async function stop() {
@@ -240,7 +280,7 @@
     $toggle.textContent = "Start";
     stopCaptionObserver();
     await sendBg({ type: MSG.STOP });
-    setStatus("stopped");
+    setStatus("Stopped");
   }
 
   function sendBg(msg) {
@@ -274,5 +314,5 @@
     }
   }, 1000);
 
-  setStatus("idle");
+  setStatus("Idle");
 })();

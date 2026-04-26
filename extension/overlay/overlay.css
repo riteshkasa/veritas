@@ -1,127 +1,271 @@
+/* ── Niwas overlay — dark rounded modern theme ── */
+
 #niwas-overlay {
   position: fixed;
   top: 80px;
   right: 16px;
-  width: 360px;
-  max-height: 70vh;
+  width: 370px;
+  max-height: 72vh;
   z-index: 2147483647;
-  background: rgba(20, 20, 24, 0.92);
-  color: #f5f5f7;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #2b2b30;
+  color: #e4e4e8;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: width 0.25s ease, max-height 0.3s ease, border-radius 0.25s ease, box-shadow 0.2s ease;
+}
+#niwas-overlay:hover {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.09);
 }
 
+/* ── collapsed pill state ── */
+#niwas-overlay.niwas-collapsed {
+  width: auto;
+  max-height: 48px;
+  border-radius: 24px;
+}
+#niwas-overlay.niwas-collapsed .niwas-body,
+#niwas-overlay.niwas-collapsed .niwas-resize { display: none; }
+#niwas-overlay.niwas-collapsed .niwas-header { border-bottom: none; }
+
+/* ── scrollbar ── */
+#niwas-overlay ::-webkit-scrollbar { width: 4px; }
+#niwas-overlay ::-webkit-scrollbar-track { background: transparent; }
+#niwas-overlay ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+
+/* ── header ── */
 #niwas-overlay .niwas-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   cursor: move;
   user-select: none;
 }
-#niwas-overlay .niwas-title { font-weight: 600; flex: 0 0 auto; }
+#niwas-overlay .niwas-title {
+  font-weight: 650;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  flex: 0 0 auto;
+}
+
+/* ── verdict count badge ── */
+#niwas-overlay .niwas-badge {
+  flex: 0 0 auto;
+  min-width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(228, 228, 232, 0.7);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
 #niwas-overlay .niwas-status {
   flex: 1 1 auto;
   font-size: 11px;
-  opacity: 0.75;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  color: rgba(228, 228, 232, 0.55);
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-#niwas-overlay .niwas-status[data-level="warn"] { color: #ffcc66; }
-#niwas-overlay .niwas-status[data-level="error"] { color: #ff7777; }
+#niwas-overlay .niwas-status[data-level="warn"] { color: #f0c351; background: rgba(240, 195, 81, 0.1); }
+#niwas-overlay .niwas-status[data-level="error"] { color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
+/* ── buttons ── */
 #niwas-overlay .niwas-btn {
-  background: #3b82f6;
-  color: white;
+  background: #e4e4e8;
+  color: #1c1c1f;
   border: 0;
-  border-radius: 6px;
-  padding: 4px 10px;
+  border-radius: 10px;
+  padding: 5px 14px;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
-#niwas-overlay .niwas-btn:hover { background: #2563eb; }
+#niwas-overlay .niwas-btn:hover { background: #fff; transform: scale(1.03); }
+#niwas-overlay .niwas-btn:active { transform: scale(0.97); }
 #niwas-overlay .niwas-btn-ghost {
   background: transparent;
-  color: #ccc;
+  color: rgba(228, 228, 232, 0.5);
   padding: 2px 8px;
+  font-size: 16px;
+  font-weight: 400;
+  border-radius: 8px;
 }
+#niwas-overlay .niwas-btn-ghost:hover { color: #e4e4e8; background: rgba(255, 255, 255, 0.06); }
 
+/* ── body ── */
 #niwas-overlay .niwas-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 10px 10px;
+  gap: 10px;
+  padding: 12px 14px 14px;
   overflow: hidden;
 }
+
+/* ── transcript ticker ── */
 #niwas-overlay .niwas-transcript {
-  font-size: 11px;
-  line-height: 1.4;
-  max-height: 60px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-height: 56px;
   overflow-y: auto;
-  color: #c8c8d0;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 6px 8px;
-  border-radius: 6px;
+  color: rgba(228, 228, 232, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
+
+/* ── verdict list ── */
 #niwas-overlay .niwas-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   overflow-y: auto;
   max-height: 50vh;
+  padding-right: 2px;
 }
 
+/* ── verdict card ── */
 #niwas-overlay .niwas-card {
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 3px solid #888;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #555;
+  transition: background 0.15s ease;
 }
-#niwas-overlay .niwas-card.niwas-true { border-left-color: #22c55e; }
-#niwas-overlay .niwas-card.niwas-false { border-left-color: #ef4444; }
-#niwas-overlay .niwas-card.niwas-misleading { border-left-color: #f59e0b; }
+#niwas-overlay .niwas-card:hover { background: rgba(255, 255, 255, 0.065); }
+#niwas-overlay .niwas-card.niwas-true { border-left-color: #34d399; }
+#niwas-overlay .niwas-card.niwas-false { border-left-color: #f87171; }
+#niwas-overlay .niwas-card.niwas-misleading { border-left-color: #fbbf24; }
 #niwas-overlay .niwas-card.niwas-unverified { border-left-color: #64748b; }
 
 #niwas-overlay .niwas-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
+
+/* ── verdict badge ── */
 #niwas-overlay .niwas-verdict {
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 6px;
 }
-#niwas-overlay .niwas-card.niwas-true .niwas-verdict { color: #22c55e; }
-#niwas-overlay .niwas-card.niwas-false .niwas-verdict { color: #ef4444; }
-#niwas-overlay .niwas-card.niwas-misleading .niwas-verdict { color: #f59e0b; }
-#niwas-overlay .niwas-card.niwas-unverified .niwas-verdict { color: #94a3b8; }
+#niwas-overlay .niwas-card.niwas-true .niwas-verdict {
+  color: #34d399; background: rgba(52, 211, 153, 0.1);
+}
+#niwas-overlay .niwas-card.niwas-false .niwas-verdict {
+  color: #f87171; background: rgba(248, 113, 113, 0.1);
+}
+#niwas-overlay .niwas-card.niwas-misleading .niwas-verdict {
+  color: #fbbf24; background: rgba(251, 191, 36, 0.1);
+}
+#niwas-overlay .niwas-card.niwas-unverified .niwas-verdict {
+  color: #94a3b8; background: rgba(148, 163, 184, 0.1);
+}
 
-#niwas-overlay .niwas-conf { font-size: 11px; opacity: 0.7; }
+#niwas-overlay .niwas-conf {
+  font-size: 11px;
+  color: rgba(228, 228, 232, 0.45);
+  font-variant-numeric: tabular-nums;
+}
 #niwas-overlay .niwas-time {
   margin-left: auto;
   font-size: 11px;
-  opacity: 0.7;
+  color: rgba(228, 228, 232, 0.45);
   cursor: pointer;
-  text-decoration: underline dotted;
+  text-decoration: none;
+  padding: 1px 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-#niwas-overlay .niwas-claim { font-size: 13px; line-height: 1.35; }
-#niwas-overlay .niwas-rationale { margin-top: 4px; font-size: 11px; opacity: 0.85; }
-#niwas-overlay .niwas-cites { margin-top: 6px; font-size: 11px; }
+#niwas-overlay .niwas-time:hover {
+  color: #e4e4e8;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#niwas-overlay .niwas-claim {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e4e4e8;
+}
+#niwas-overlay .niwas-rationale {
+  margin-top: 5px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(228, 228, 232, 0.65);
+}
+#niwas-overlay .niwas-cites {
+  margin-top: 7px;
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
 #niwas-overlay .niwas-cites a {
   color: #93c5fd;
   text-decoration: none;
-  margin-right: 6px;
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+  transition: color 0.12s ease, border-color 0.12s ease;
 }
-#niwas-overlay .niwas-cites a:hover { text-decoration: underline; }
+#niwas-overlay .niwas-cites a:hover {
+  color: #bfdbfe;
+  border-bottom-color: rgba(191, 219, 254, 0.5);
+}
+
+/* ── collapse chevron ── */
+#niwas-overlay .niwas-btn-ghost svg {
+  display: block;
+  transition: transform 0.25s ease;
+}
+#niwas-overlay.niwas-collapsed .niwas-btn-ghost svg {
+  transform: rotate(-90deg);
+}
+
+/* ── resize handle ── */
+#niwas-overlay .niwas-resize {
+  height: 6px;
+  cursor: ns-resize;
+  flex: 0 0 auto;
+  background: transparent;
+  position: relative;
+}
+#niwas-overlay .niwas-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.15s ease;
+}
+#niwas-overlay .niwas-resize:hover::after {
+  background: rgba(255, 255, 255, 0.25);
+}

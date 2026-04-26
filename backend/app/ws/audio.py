@@ -41,7 +41,7 @@ async def audio_ws(ws: WebSocket) -> None:
     if not settings.groq_api_key:
         await send(StatusOut(
             level="warn",
-            message="audio path: GROQ_API_KEY not set; transcripts will be empty",
+            message="Audio Path: GROQ_API_KEY Not Set — Transcripts Will Be Empty",
         ).model_dump())
 
     try:

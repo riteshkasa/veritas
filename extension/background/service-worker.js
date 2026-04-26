@@ -7,7 +7,7 @@ const tabs = new Map(); // tabId -> { sessionId, videoId, capWs }
 function getState(tabId) {
   let s = tabs.get(tabId);
   if (!s) {
-    s = { sessionId: crypto.randomUUID(), videoId: "", capWs: null };
+    s = { sessionId: crypto.randomUUID(), videoId: "", capWs: null, meta: null };
     tabs.set(tabId, s);
   }
   return s;
@@ -26,16 +26,17 @@ function attachWsHandlers(ws, tabId) {
     else if (data.type === "status") sendToTab(tabId, { type: MSG.STATUS, payload: data });
   });
   ws.addEventListener("close", () => {
-    sendToTab(tabId, { type: MSG.STATUS, payload: { type: "status", level: "warn", message: "captions ws closed" } });
+    sendToTab(tabId, { type: MSG.STATUS, payload: { type: "status", level: "warn", message: "Captions N/A" } });
   });
   ws.addEventListener("error", () => {
-    sendToTab(tabId, { type: MSG.STATUS, payload: { type: "status", level: "error", message: "captions ws error" } });
+    sendToTab(tabId, { type: MSG.STATUS, payload: { type: "status", level: "error", message: "Captions Error" } });
   });
 }
 
-async function ensureCaptionsWs(tabId, videoId) {
+async function ensureCaptionsWs(tabId, videoId, meta) {
   const s = getState(tabId);
   s.videoId = videoId || s.videoId;
+  if (meta) s.meta = meta;
   if (s.capWs && s.capWs.readyState === WebSocket.OPEN) return s.capWs;
   const ws = new WebSocket(CAPTIONS_WS);
   s.capWs = ws;
@@ -43,7 +44,12 @@ async function ensureCaptionsWs(tabId, videoId) {
     ws.addEventListener("open", res, { once: true });
     ws.addEventListener("error", rej, { once: true });
   });
-  ws.send(JSON.stringify({ type: "hello", sessionId: s.sessionId, videoId: s.videoId }));
+  ws.send(JSON.stringify({
+    type: "hello",
+    sessionId: s.sessionId,
+    videoId: s.videoId,
+    meta: s.meta || {},
+  }));
   attachWsHandlers(ws, tabId);
   return ws;
 }
@@ -53,7 +59,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const tabId = sender?.tab?.id;
     try {
       if (msg.type === MSG.START) {
-        await ensureCaptionsWs(tabId, msg.payload?.videoId || "");
+        await ensureCaptionsWs(tabId, msg.payload?.videoId || "", msg.payload?.meta);
         sendResponse({ ok: true });
       } else if (msg.type === MSG.STOP) {
         const s = tabs.get(tabId);

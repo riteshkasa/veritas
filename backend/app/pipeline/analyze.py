@@ -21,6 +21,10 @@ log = get_logger(__name__)
 
 EXTRACT_SYSTEM = (
     "You extract check-worthy factual claims from a short transcript chunk. "
+    "You may also be given VIDEO CONTEXT (title, channel, published date, "
+    "description) — use it to resolve pronouns (e.g. 'he' → the speaker's "
+    "name) and to understand the topic, but do NOT extract claims from the "
+    "metadata itself.\n\n"
     "A check-worthy claim is a specific, verifiable assertion about the real "
     "world: numbers, dates, named people / orgs / places, causal statements, "
     "scientific or historical facts. Skip opinions, jokes, questions, "
@@ -119,8 +123,12 @@ async def analyze(text: str, video_time_ms: int) -> List[VerdictResult]:
     return results
 
 
-async def extract_claims(text: str) -> List[str]:
-    """Return a list of standalone check-worthy claims from a transcript chunk."""
+async def extract_claims(text: str, *, video_context: str = "") -> List[str]:
+    """Return a list of standalone check-worthy claims from a transcript chunk.
+
+    If `video_context` is provided (title, channel, date, description) it is
+    prepended so the LLM can resolve pronouns and understand who is speaking.
+    """
     text = text.strip()
     if not text:
         return []
@@ -128,8 +136,11 @@ async def extract_claims(text: str) -> List[str]:
     if not client.enabled:
         log.warning("extract_claims: GEMMA_API_KEY not configured; skipping")
         return []
+    user_msg = text
+    if video_context:
+        user_msg = f"VIDEO CONTEXT:\n{video_context}\n\nTRANSCRIPT:\n{text}"
     try:
-        out = await client.chat_json(EXTRACT_SYSTEM, text)
+        out = await client.chat_json(EXTRACT_SYSTEM, user_msg)
     except Exception as e:
         log.warning("extract_claims: LLM call failed: %s", e)
         return []

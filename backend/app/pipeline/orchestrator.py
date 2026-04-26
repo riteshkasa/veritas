@@ -25,10 +25,11 @@ class Session:
     On 429 it doubles its interval (capped) until calls succeed again.
     """
 
-    def __init__(self, session_id: str, video_id: str, send: SendFn):
+    def __init__(self, session_id: str, video_id: str, send: SendFn, video_meta: dict | None = None):
         self.session_id = session_id
         self.video_id = video_id
         self.send = send
+        self.video_meta: dict = video_meta or {}
         self.queue: List[Tuple[int, str]] = []  # (video_time_ms, text)
         self.seen_claims: set[str] = set()
         self._task: asyncio.Task | None = None
@@ -41,6 +42,22 @@ class Session:
         # same sender, so we process claims one at a time. Each call is fast
         # on cache hits, and bounded LLM/HTTP latency on misses.
         self._agent_lock = asyncio.Lock()
+
+    def _video_context(self) -> str:
+        """Build a short preamble from video metadata for the LLM."""
+        m = self.video_meta
+        if not m:
+            return ""
+        parts: list[str] = []
+        if m.get("title"):
+            parts.append(f"Title: {m['title']}")
+        if m.get("channel"):
+            parts.append(f"Channel: {m['channel']}")
+        if m.get("publishDate"):
+            parts.append(f"Published: {m['publishDate']}")
+        if m.get("description"):
+            parts.append(f"Description: {m['description'][:300]}")
+        return "\n".join(parts) if parts else ""
 
     # ---- public ----
     async def feed(self, text: str, time_ms: int) -> None:
@@ -100,7 +117,7 @@ class Session:
         )
 
         try:
-            claims = await extract_claims(chunk)
+            claims = await extract_claims(chunk, video_context=self._video_context())
         except RateLimitError as e:
             old = self._interval
             self._interval = min(self._interval * 2, 120.0)
@@ -108,7 +125,7 @@ class Session:
             log.warning("429 from LLM; backing off %.1fs -> %.1fs (%s)", old, self._interval, e)
             await self.send(StatusOut(
                 level="warn",
-                message=f"LLM rate-limited; slowing to {int(self._interval)}s windows",
+                message=f"LLM Rate-Limited — Slowing to {int(self._interval)}s Windows",
             ).model_dump())
             return
         except Exception as e:
