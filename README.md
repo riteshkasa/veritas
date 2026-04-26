@@ -1,94 +1,94 @@
-# Niwas — Real-Time Video Fact Checker
+# Veritas — Real-Time Video Fact Checker
 
-A Chrome extension + FastAPI backend + Fetch.ai uAgent that fact-checks YouTube videos in real time. The extension streams closed captions to the backend; Gemma extracts check-worthy claims; each claim is sent to a Fetch.ai uAgent that consults a local SQLite vector cache (Gemini embeddings, cosine similarity) and falls back to Wikipedia + Google Fact Check Tools APIs to gather evidence; Gemma renders a final verdict against that evidence; the cache is written back so paraphrased claims are answered instantly.
+A Chrome extension that fact-checks YouTube videos in real time. Closed captions are streamed to a FastAPI backend where Google Gemma extracts check-worthy claims; a Fetch.ai uAgent gathers evidence from Wikipedia and Google Fact Check Tools, consults a semantic vector cache, and renders verdicts with citations. An integrated chat lets you ask questions about the video as you watch.
 
-See `PLAN.md` for the full design.
+## Features
 
-## Quick start
+- **Live fact-checking** — Claims are extracted from captions automatically and checked against real sources.
+- **Verdict cards** — Color-coded results (`true`, `false`, `misleading`, `needs_context`) with confidence scores, rationale, and source links.
+- **Ask Veritas** — Chat with an AI assistant that has context from the video transcript.
+- **Semantic cache** — SQLite + Gemini embeddings so paraphrased claims are answered instantly.
+- **Video-aware** — Scrapes video title, channel, description, and publish date to help the LLM resolve pronouns and understand context.
+- **Expandable UI** — Draggable, collapsible panel with a resizable split between fact-check results and chat.
+
+## Quick Start
 
 ### 1. Backend
 
 ```bash
 cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example .env   # optional; without keys the pipeline runs in mock mode
-python -m app.main
+cp ../.env.example .env          # fill in API keys
+./scripts/dev-backend.sh
 ```
 
 Health check: `curl http://localhost:8787/health`
 
 ### 2. Fact-check uAgent
 
-Run in a separate terminal:
+In a separate terminal:
 
 ```bash
 ./scripts/dev-agent.sh
 ```
 
-The first run prints an `agent1q...` address. Copy it into `backend/.env` as `FACTCHECK_AGENT_ADDRESS=agent1q...` (and set `FACTCHECK_AGENT_SEED=` to any stable phrase to keep the address deterministic across restarts), then restart the agent.
+The first run prints an `agent1q...` address. Set it in `backend/.env`:
 
-Smoke test the agent without the extension:
+```
+FACTCHECK_AGENT_SEED=any-stable-phrase
+FACTCHECK_AGENT_ADDRESS=agent1q...
+```
+
+Then restart the agent. Smoke test:
 
 ```bash
 backend/.venv/bin/python scripts/test_factcheck_agent.py "The Eiffel Tower is 330 meters tall"
 ```
 
-To enable Google Fact Check Tools as an evidence source, enable the API in the Google Cloud project tied to your `GEMMA_API_KEY` (or set a separate `GOOGLE_FACTCHECK_API_KEY`). Wikipedia works without any key.
+### 3. Chrome Extension
 
-### 3. Chrome extension
-
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Click **Load unpacked** and pick the `extension/` folder.
-3. Open any YouTube video. A draggable **Niwas Fact Check** panel appears.
-4. Click **Start**. It tries captions first, then falls back to tab audio after 6 s if no captions are detected.
-
-See `scripts/load-extension-instructions.md` for more.
-
-## Repo layout
-
-```
-niwas/
-├── PLAN.md                       # design doc
-├── backend/                      # FastAPI service (Python)
-│   └── app/
-│       ├── main.py
-│       ├── ws/                   # /ingest/captions and /ingest/audio
-│       ├── pipeline/             # buffer → claim seg → retrieve → verdict
-│       └── adapters/             # Gemma (LLM), Gemini (ASR), Wikipedia, Tavily
-├── extension/                    # Chrome MV3 extension (vanilla JS, no build)
-│   ├── manifest.json
-│   ├── background/service-worker.js
-│   ├── offscreen/                # tabCapture + MediaRecorder
-│   ├── content/content.js        # YouTube CC observer + overlay UI
-│   ├── overlay/overlay.css
-│   ├── popup/
-│   └── lib/
-└── scripts/
-```
-
-## Modes of operation
-
-- **Captions mode** — content script observes `.ytp-caption-segment` mutations and streams cues over a WebSocket.
-- **Audio mode** — service worker creates an offscreen document that calls `chrome.tabCapture` and posts ~5 s Opus segments to the backend, which transcribes via a Gemini multimodal model.
+1. Open `chrome://extensions` → enable **Developer mode**.
+2. **Load unpacked** → select the `extension/` folder.
+3. Open a YouTube video. The **Veritas** panel appears.
+4. Click **Start**.
 
 ## Configuration
 
-Set in `backend/.env` (or copy `.env.example`):
+Set in `backend/.env` (see `.env.example`):
 
-| Var | Purpose |
+| Variable | Purpose |
 | --- | --- |
-| `GEMMA_API_KEY`  | Google API key — Gemma for text (claims + verdicts), Gemini for audio ASR |
-| `TAVILY_API_KEY` | Optional web search retrieval (Wikipedia is always on) |
-| `HOST`, `PORT`  | Backend bind address (default `0.0.0.0:8787`) |
+| `GEMMA_API_KEY` | Google API key for Gemma (claims + verdicts) and Gemini (embeddings) |
+| `GOOGLE_FACTCHECK_API_KEY` | Google Fact Check Tools API (optional, falls back to `GEMMA_API_KEY`) |
+| `FACTCHECK_AGENT_SEED` | Stable seed phrase for deterministic agent address |
+| `FACTCHECK_AGENT_ADDRESS` | The `agent1q...` address printed on first agent run |
+| `AGENTVERSE_MAILBOX_KEY` | JWT from agentverse.ai for auto-registration (optional) |
+| `HOST`, `PORT` | Backend bind address (default `0.0.0.0:8787`) |
 
-To point the extension at a non-local backend, edit `extension/lib/config.js`.
+## Repo Layout
 
-## Status
+```
+veritas/
+├── backend/                      # FastAPI service (Python)
+│   └── app/
+│       ├── main.py
+│       ├── config.py             # pydantic-settings
+│       ├── ws/                   # WebSocket endpoints
+│       ├── pipeline/             # orchestrator, claim extraction, verdict prompts, chat
+│       ├── agents/               # uAgent + client (Fetch.ai)
+│       ├── rag/                  # SQLite vector cache
+│       └── adapters/             # Gemma LLM, Gemini embeddings, Wikipedia, Google Fact Check
+├── extension/                    # Chrome MV3 extension (vanilla JS, no build step)
+│   ├── manifest.json
+│   ├── background/               # service worker — WS management
+│   ├── content/                  # YouTube caption observer + overlay UI + chat
+│   ├── overlay/                  # CSS theme
+│   ├── popup/                    # toolbar popup
+│   └── lib/                      # config, message types
+├── scripts/                      # dev scripts, smoke tests
+├── PLAN.md                       # original design doc
+└── DEVPOST.md                    # hackathon submission write-up
+```
 
-v0.1 — first working slice. Known limitations:
+## Built With
 
-- YouTube only.
-- English only.
-- No persistence; verdicts live in memory per session.
-- Audio segments are 5 s blocks (not streaming ASR), so audio-mode latency is ~6–10 s.
+Python, JavaScript, FastAPI, Google Gemma, Google Gemini, Fetch.ai uAgents, Agentverse, Chrome Extensions (MV3), SQLite, Wikipedia API, Google Fact Check Tools API, WebSockets, Pydantic
