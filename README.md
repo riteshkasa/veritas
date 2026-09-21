@@ -2,7 +2,7 @@
 
 A Chrome extension that fact-checks YouTube videos in real time. Closed captions are streamed to a FastAPI backend where Google Gemma extracts check-worthy claims; a Fetch.ai uAgent gathers evidence from Wikipedia and Google Fact Check Tools, consults a semantic vector cache, and renders verdicts with citations. An integrated chat lets you ask questions about the video as you watch.
 
-Video Here: youtube.com/watch?v=CuinBraRAlk&feature=youtu.be
+[Veritas LA Hacks Video](https://www.youtube.com/watch?v=CuinBraRAlk&feature=youtu.be)
 
 ## Features
 
